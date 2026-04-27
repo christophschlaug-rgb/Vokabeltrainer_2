@@ -7,7 +7,6 @@ on:
 jobs:
   bootstrap:
     runs-on: ubuntu-latest
-    if: hashFiles('_payload.zip') != ''
     permissions:
       contents: write
       actions: write
@@ -15,14 +14,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Entpacken, committen, push
+      - name: Pruefe ob _payload.zip vorhanden
+        id: check
         run: |
-          set -e
-          if [ ! -f _payload.zip ]; then
-            echo "Kein _payload.zip vorhanden — überspringe."
-            exit 0
+          if [ -f _payload.zip ]; then
+            echo "found=true" >> $GITHUB_OUTPUT
+          else
+            echo "found=false" >> $GITHUB_OUTPUT
+            echo "Kein _payload.zip — nichts zu tun."
           fi
 
+      - name: Entpacken, committen, push
+        if: steps.check.outputs.found == 'true'
+        run: |
+          set -e
           echo "Entpacke _payload.zip ..."
           unzip -o _payload.zip
 
@@ -41,6 +46,7 @@ jobs:
           git push
 
       - name: Build-Workflow direkt anstoßen
+        if: steps.check.outputs.found == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
