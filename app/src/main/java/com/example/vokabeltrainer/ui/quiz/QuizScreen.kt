@@ -98,7 +98,7 @@ fun QuizScreen(onFinished: () -> Unit, vm: QuizViewModel = viewModel()) {
                         ),
                         keyboardActions = KeyboardActions(
                             onDone = {
-                                if (state.lastAnswerCorrect == null && input.isNotBlank()) vm.submit(input)
+                                if (state.lastAnswerCorrect == null) vm.submit(input)
                             }
                         ),
                         modifier = Modifier
@@ -108,10 +108,11 @@ fun QuizScreen(onFinished: () -> Unit, vm: QuizViewModel = viewModel()) {
 
                     if (state.lastAnswerCorrect == null) {
                         Button(
-                            onClick = { if (input.isNotBlank()) vm.submit(input) },
-                            enabled = input.isNotBlank(),
+                            onClick = { vm.submit(input) },
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text("Prüfen") }
+                        ) {
+                            Text(if (input.isBlank()) "Lösung zeigen" else "Prüfen")
+                        }
                     } else {
                         val ok = state.lastAnswerCorrect == true
                         Card(

@@ -7,14 +7,15 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 
 @Database(
-    entities = [Word::class, LearningState::class],
-    version = 1,
+    entities = [Word::class, LearningState::class, LearningUnit::class],
+    version = 2,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun wordDao(): WordDao
     abstract fun learningDao(): LearningStateDao
+    abstract fun unitDao(): UnitDao
 
     companion object {
         fun create(context: Context): AppDatabase =

@@ -40,4 +40,10 @@ class GraderTest {
 
     @Test fun `EN to DE - case insensitive for nouns`() =
         assertTrue(Grader.check(EN_TO_DE, listOf("Scharfsinn"), "scharfsinn"))
+
+    @Test fun `empty input is always wrong`() {
+        assertFalse(Grader.check(DE_TO_EN, listOf("run"), ""))
+        assertFalse(Grader.check(EN_TO_DE, listOf("Haus"), ""))
+        assertFalse(Grader.check(DE_TO_EN, listOf("run"), "   "))
+    }
 }

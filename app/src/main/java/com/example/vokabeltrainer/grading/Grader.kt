@@ -18,7 +18,9 @@ object Grader {
      * @param userInput Rohe Nutzereingabe
      */
     fun check(direction: Direction, solutions: List<String>, userInput: String): Boolean {
+        if (userInput.isBlank()) return false
         val normIn = if (direction == Direction.DE_TO_EN) normEn(userInput) else normDe(userInput)
+        if (normIn.isEmpty()) return false
         return solutions.any { sol ->
             val normSol = if (direction == Direction.DE_TO_EN) normEn(sol) else normDe(sol)
             normSol == normIn

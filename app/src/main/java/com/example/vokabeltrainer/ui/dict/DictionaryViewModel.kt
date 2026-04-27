@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 class DictionaryViewModel(app: Application) : AndroidViewModel(app) {
 
     private val db = (app as VokabelApp).db
+    private val repo = (app as VokabelApp).repository
 
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
@@ -27,4 +28,8 @@ class DictionaryViewModel(app: Application) : AndroidViewModel(app) {
 
     suspend fun getWord(id: String): Word? = db.wordDao().byId(id)
     suspend fun getState(id: String): LearningState? = db.learningDao().byWord(id)
+
+    fun deleteWord(id: String) {
+        viewModelScope.launch { repo.deleteWord(id) }
+    }
 }

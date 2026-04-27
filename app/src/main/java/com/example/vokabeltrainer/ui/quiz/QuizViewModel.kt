@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.vokabeltrainer.VokabelApp
 import com.example.vokabeltrainer.data.AppDatabase
+import com.example.vokabeltrainer.data.AppPreferences
 import com.example.vokabeltrainer.data.LearningState
 import com.example.vokabeltrainer.data.Word
 import com.example.vokabeltrainer.grading.Grader
@@ -43,17 +44,31 @@ data class QuizUiState(
 class QuizViewModel(app: Application) : AndroidViewModel(app) {
 
     private val db: AppDatabase = (app as VokabelApp).db
+    private val prefs: AppPreferences = (app as VokabelApp).prefs
     private val queue = ArrayDeque<Word>()
+
+    /** Optional auf eine Unit eingeschränkt. null = alle Karten. */
+    private var unitId: String? = null
 
     private val _state = MutableStateFlow(QuizUiState())
     val state: StateFlow<QuizUiState> = _state.asStateFlow()
 
     init { loadQueue() }
 
+    /**
+     * Auf eine Unit beschränken und neu laden. Aufrufen direkt nach Erzeugung
+     * des ViewModels, bevor die UI Karten anzeigt.
+     */
+    fun restrictToUnit(unitId: String?) {
+        this.unitId = unitId
+        loadQueue()
+    }
+
     private fun loadQueue() {
         viewModelScope.launch {
             val today = SrsEngine.startOfTodayMillis()
-            val due = db.learningDao().dueList(today, 100)
+            val limit = prefs.dailyLimit
+            val due = db.learningDao().dueListFiltered(today, limit, unitId)
             val words = due.mapNotNull { db.wordDao().byId(it.wordId) }
             queue.clear()
             queue.addAll(words.shuffled())

@@ -1,18 +1,22 @@
-# Vokabeltrainer – C1 Englisch
+# Vokabeltrainer – Englisch B1 → C1
 
-Android-App zum Aufbau von C1-Englisch-Wortschatz mit Spaced Repetition.
+Android-App zum Aufbau von Englisch-Wortschatz auf den Niveaus B1 bis C1 mit Spaced Repetition.
 Läuft auf Android 8.0+ (getestet auf Android 11).
 
 ## Features
 
-- **1789 kuratierte C1-Vokabeln** sind fest eingebaut, die App ist sofort offline einsatzbereit
-- Täglich bis zu 100 fällige Vokabeln abfragen
+- **5357 Vokabeln** sind fest eingebaut: 91 A2 (Aufwärmen), 763 B1, 1191 B2, 3312 C1
+- Sofort offline einsatzbereit
+- Konfigurierbares Tageslimit (25 / 50 / 75 / 100 / 150 fällige Karten)
 - Spaced Repetition mit festen Intervallen (richtig: 1 / 3 / 10 / 30 / 90 / 180 Tage; falsch: morgen)
 - Zufällige Abfragerichtung DE↔EN pro Karte
 - Automatische Bewertung: Groß/Kleinschreibung egal, optionales "to" bei Verben, mehrere Übersetzungen erlaubt
+- **Enter mit leerem Feld = "Lösung zeigen"** — du musst nichts eingeben, wenn du es nicht weißt
+- **Units anlegen** für Vokabeln aus deinem Englischbuch — jede Unit kann separat oder gemischt mit dem Standard-Wörterbuch geübt werden
+- **Vokabeln löschen** (Soft-Delete mit Papierkorb zum Wiederherstellen)
+- **Inkrementelles Update**: "Wortschatz aktualisieren" lädt nur neue Vokabeln nach, dein Lernfortschritt bleibt erhalten
 - Wörterbuch alphabetisch + Live-Suche über EN und DE
-- Detail-Ansicht mit Lernstatus
-- Optional: Wortliste später aus dem Netz aktualisieren
+- Level-Übersicht: wie viele Karten in welchem SRS-Level (0-5)
 - Keine sensiblen Berechtigungen (nur INTERNET), nur HTTPS, kein Cleartext
 
 ## So baust du die APK – mit GitHub Actions (empfohlen)
