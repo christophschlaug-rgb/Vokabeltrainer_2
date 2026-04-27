@@ -2,17 +2,17 @@ package com.example.vokabeltrainer.ui.units
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.vokabeltrainer.VokabelApp
 import com.example.vokabeltrainer.data.LearningUnit
 import com.example.vokabeltrainer.data.Word
 import com.example.vokabeltrainer.network.VocabRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -22,35 +22,47 @@ data class UnitDetailUiState(
     val error: String? = null
 )
 
-class UnitDetailViewModel(
-    app: Application,
-    val unitId: String
-) : AndroidViewModel(app) {
+@OptIn(ExperimentalCoroutinesApi::class)
+class UnitDetailViewModel(app: Application) : AndroidViewModel(app) {
 
     private val db = (app as VokabelApp).db
     private val repo: VocabRepository = (app as VokabelApp).repository
 
+    private var unitId: String = ""
+
     private val _state = MutableStateFlow(UnitDetailUiState())
     val state: StateFlow<UnitDetailUiState> = _state.asStateFlow()
 
+    private val _unitIdFlow = MutableStateFlow<String?>(null)
     val words: StateFlow<List<Word>> =
-        db.wordDao().forUnitFlow(unitId).stateIn(
+        _unitIdFlow.flatMapLatest { id ->
+            if (id.isNullOrBlank()) kotlinx.coroutines.flow.flowOf(emptyList())
+            else db.wordDao().forUnitFlow(id)
+        }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = emptyList()
         )
 
-    init {
+    /**
+     * An eine Unit binden. Wird vom Screen via LaunchedEffect aufgerufen.
+     * Idempotent — mehrfacher Aufruf mit gleicher ID schadet nicht.
+     */
+    fun bindToUnit(id: String) {
+        if (unitId == id) return
+        unitId = id
+        _unitIdFlow.value = id
         viewModelScope.launch {
-            val unit = db.unitDao().byId(unitId)
+            val unit = db.unitDao().byId(id)
             _state.value = _state.value.copy(unit = unit)
         }
     }
 
     /**
-     * Fügt eine Vokabel zur Unit hinzu. Dedupliziert ggf. mit Standard-Wörterbuch.
+     * Fügt eine Vokabel zur aktuellen Unit hinzu. Dedupliziert ggf. mit Standard-Wörterbuch.
      */
     fun addWord(en: String, deRaw: String, pos: String) {
+        if (unitId.isBlank()) return
         viewModelScope.launch {
             try {
                 val deList = deRaw.split(",", "/")
@@ -80,14 +92,5 @@ class UnitDetailViewModel(
 
     fun clearMessage() {
         _state.value = _state.value.copy(message = null, error = null)
-    }
-
-    companion object {
-        fun factory(unitId: String) = viewModelFactory {
-            initializer {
-                val app = (this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]) as Application
-                UnitDetailViewModel(app, unitId)
-            }
-        }
     }
 }

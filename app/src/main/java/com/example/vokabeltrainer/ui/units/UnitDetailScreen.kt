@@ -20,12 +20,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 fun UnitDetailScreen(
     unitId: String,
     onBack: () -> Unit,
-    onStartUnitQuiz: (String) -> Unit
+    onStartUnitQuiz: (String) -> Unit,
+    vm: UnitDetailViewModel = viewModel(key = "unit_$unitId")
 ) {
-    val vm: UnitDetailViewModel = viewModel(
-        key = "unit_$unitId",
-        factory = UnitDetailViewModel.factory(unitId)
-    )
+    LaunchedEffect(unitId) { vm.bindToUnit(unitId) }
     val state by vm.state.collectAsState()
     val words by vm.words.collectAsState()
     val snackbar = remember { SnackbarHostState() }
