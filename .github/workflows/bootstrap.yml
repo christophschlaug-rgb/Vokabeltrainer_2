@@ -1,0 +1,51 @@
+name: Bootstrap (entpackt _payload.zip)
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    if: hashFiles('_payload.zip') != ''
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Entpacken, committen, push
+        run: |
+          set -e
+          if [ ! -f _payload.zip ]; then
+            echo "Kein _payload.zip vorhanden — überspringe."
+            exit 0
+          fi
+
+          echo "Entpacke _payload.zip ..."
+          unzip -o _payload.zip
+
+          echo "Räume Bootstrap-Reste auf ..."
+          rm -f _payload.zip
+          rm -f .github/workflows/bootstrap.yml
+
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Keine Änderungen — bereits initialisiert."
+            exit 0
+          fi
+          git commit -m "Bootstrap: Punkt-Dateien einspielen, Aufräumen"
+          git push
+
+      - name: Build-Workflow direkt anstoßen
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          sleep 5
+          echo "Starte 'Build APK' explizit..."
+          gh workflow run build.yml --ref ${{ github.ref_name }} || \
+            echo "Hinweis: Manueller Start war nicht möglich. Push nochmal eine Kleinigkeit, dann läuft Build APK automatisch."
