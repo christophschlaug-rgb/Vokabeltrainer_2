@@ -31,12 +31,17 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     private val _state = MutableStateFlow(HomeUiState())
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
 
-    init { refresh() }
+    init {
+        // Vokabeln initial einspielen, falls DB leer
+        viewModelScope.launch { repo.seedIfEmpty() }
 
-    fun refresh() {
+        // Stats werden bei jeder DB-Änderung neu geladen.
+        // Dafür reicht es, einen einzigen Flow zu beobachten — sobald der
+        // Lernzustand sich ändert, sind alle anderen Statistiken auch aktualisiert.
         viewModelScope.launch {
-            repo.seedIfEmpty()
-            loadStats()
+            db.learningDao().totalFlow().collect {
+                loadStats()
+            }
         }
     }
 
@@ -62,7 +67,6 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
 
     /**
      * Inkrementelles Nachladen aus dem mitgelieferten Asset.
-     * Bestehende Wörter werden nicht überschrieben, gelöschte nicht wiederbelebt.
      */
     fun reloadFromAsset() {
         viewModelScope.launch {
@@ -70,15 +74,15 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 val n = repo.refreshFromAsset()
                 _state.value = _state.value.copy(
+                    loading = false,
                     message = if (n == 0) "Keine neuen Vokabeln gefunden."
                               else "$n neue Vokabeln hinzugefügt."
                 )
             } catch (t: Throwable) {
                 _state.value = _state.value.copy(
+                    loading = false,
                     error = "Aktualisieren fehlgeschlagen: ${t.message ?: "Unbekannter Fehler"}"
                 )
-            } finally {
-                loadStats()
             }
         }
     }

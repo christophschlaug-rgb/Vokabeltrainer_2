@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,11 +27,21 @@ import com.example.vokabeltrainer.ui.theme.Wrong
 fun QuizScreen(onFinished: () -> Unit, vm: QuizViewModel = viewModel()) {
     val state by vm.state.collectAsState()
     var input by remember { mutableStateOf("") }
+    var showDeleteDialog by remember { mutableStateOf(false) }
     val focus = remember { FocusRequester() }
+    val snackbar = remember { SnackbarHostState() }
 
     LaunchedEffect(state.card?.word?.id) {
         input = ""
         if (state.card != null) focus.requestFocus()
+    }
+
+    LaunchedEffect(state.deletedNotice) {
+        val msg = state.deletedNotice
+        if (!msg.isNullOrBlank()) {
+            snackbar.showSnackbar(msg)
+            vm.clearDeletedNotice()
+        }
     }
 
     Scaffold(
@@ -38,9 +50,17 @@ fun QuizScreen(onFinished: () -> Unit, vm: QuizViewModel = viewModel()) {
                 title = { Text("Quiz – ${state.done}/${state.done + state.remaining + if (state.card != null) 1 else 0}") },
                 navigationIcon = {
                     TextButton(onClick = onFinished) { Text("Schluss") }
+                },
+                actions = {
+                    if (state.card != null && !state.finished) {
+                        IconButton(onClick = { showDeleteDialog = true }) {
+                            Icon(Icons.Filled.Delete, contentDescription = "Vokabel löschen")
+                        }
+                    }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbar) }
     ) { pad ->
         Column(
             modifier = Modifier
@@ -149,6 +169,30 @@ fun QuizScreen(onFinished: () -> Unit, vm: QuizViewModel = viewModel()) {
                 }
             }
         }
+    }
+
+    if (showDeleteDialog) {
+        val word = state.card?.word
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Vokabel löschen?") },
+            text = {
+                Text(
+                    "\"${word?.en ?: ""}\" wird in den Papierkorb verschoben " +
+                    "und nicht mehr abgefragt. Wiederherstellen jederzeit über " +
+                    "Home → Papierkorb möglich."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    vm.deleteCurrent()
+                    showDeleteDialog = false
+                }) { Text("Löschen") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) { Text("Abbrechen") }
+            }
+        )
     }
 }
 

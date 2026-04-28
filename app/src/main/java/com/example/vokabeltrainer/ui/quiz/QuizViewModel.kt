@@ -9,6 +9,7 @@ import com.example.vokabeltrainer.data.AppPreferences
 import com.example.vokabeltrainer.data.LearningState
 import com.example.vokabeltrainer.data.Word
 import com.example.vokabeltrainer.grading.Grader
+import com.example.vokabeltrainer.network.VocabRepository
 import com.example.vokabeltrainer.srs.SrsEngine
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,13 +39,15 @@ data class QuizUiState(
     val lastSolutionShown: List<String>? = null,
     val finished: Boolean = false,
     val sessionCorrect: Int = 0,
-    val sessionWrong: Int = 0
+    val sessionWrong: Int = 0,
+    val deletedNotice: String? = null
 )
 
 class QuizViewModel(app: Application) : AndroidViewModel(app) {
 
     private val db: AppDatabase = (app as VokabelApp).db
     private val prefs: AppPreferences = (app as VokabelApp).prefs
+    private val repo: VocabRepository = (app as VokabelApp).repository
     private val queue = ArrayDeque<Word>()
 
     /** Optional auf eine Unit eingeschränkt. null = alle Karten. */
@@ -56,8 +59,7 @@ class QuizViewModel(app: Application) : AndroidViewModel(app) {
     init { loadQueue() }
 
     /**
-     * Auf eine Unit beschränken und neu laden. Aufrufen direkt nach Erzeugung
-     * des ViewModels, bevor die UI Karten anzeigt.
+     * Auf eine Unit beschränken und neu laden.
      */
     fun restrictToUnit(unitId: String?) {
         this.unitId = unitId
@@ -69,9 +71,11 @@ class QuizViewModel(app: Application) : AndroidViewModel(app) {
             val today = SrsEngine.startOfTodayMillis()
             val limit = prefs.dailyLimit
             val due = db.learningDao().dueListFiltered(today, limit, unitId)
+            // Reihenfolge aus dem DAO behalten — die Query sortiert bereits
+            // nach SRS-Level + Sprachniveau + RANDOM(). Hier NICHT erneut shufflen.
             val words = due.mapNotNull { db.wordDao().byId(it.wordId) }
             queue.clear()
-            queue.addAll(words.shuffled())
+            queue.addAll(words)
             _state.value = QuizUiState(
                 loading = false,
                 remaining = queue.size,
@@ -86,6 +90,7 @@ class QuizViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun nextCard(): QuizCard? {
         val w = queue.removeFirstOrNull() ?: return null
+        // Abfragerichtung pro Karte zufällig: das ist gewollt.
         val dir = if (Random.nextBoolean()) Grader.Direction.EN_TO_DE else Grader.Direction.DE_TO_EN
         return QuizCard(w, dir)
     }
@@ -128,5 +133,29 @@ class QuizViewModel(app: Application) : AndroidViewModel(app) {
                 remaining = queue.size
             )
         }
+    }
+
+    /**
+     * Aktuelle Karte aus dem Wörterbuch in den Papierkorb verschieben und
+     * direkt zur nächsten Karte springen — ohne Bewertung der aktuellen.
+     */
+    fun deleteCurrent() {
+        val current = _state.value.card ?: return
+        viewModelScope.launch {
+            repo.deleteWord(current.word.id)
+            val nxt = nextCard()
+            _state.value = _state.value.copy(
+                card = nxt,
+                lastAnswerCorrect = null,
+                lastSolutionShown = null,
+                remaining = queue.size,
+                finished = nxt == null,
+                deletedNotice = "\"${current.word.en}\" in den Papierkorb verschoben"
+            )
+        }
+    }
+
+    fun clearDeletedNotice() {
+        _state.value = _state.value.copy(deletedNotice = null)
     }
 }

@@ -46,15 +46,30 @@ interface LearningStateDao {
     @Query("SELECT COUNT(*) FROM learning_states ls INNER JOIN words w ON w.id = ls.wordId WHERE w.deleted = 0")
     suspend fun total(): Int
 
+    @Query("SELECT COUNT(*) FROM learning_states ls INNER JOIN words w ON w.id = ls.wordId WHERE w.deleted = 0")
+    fun totalFlow(): Flow<Int>
+
     @Query("SELECT COUNT(*) FROM learning_states ls INNER JOIN words w ON w.id = ls.wordId WHERE ls.level = 5 AND w.deleted = 0")
     suspend fun masteredCount(): Int
+
+    @Query("SELECT COUNT(*) FROM learning_states ls INNER JOIN words w ON w.id = ls.wordId WHERE ls.level = 5 AND w.deleted = 0")
+    fun masteredCountFlow(): Flow<Int>
 
     @Query("SELECT AVG(ls.level * 1.0) FROM learning_states ls INNER JOIN words w ON w.id = ls.wordId WHERE w.deleted = 0")
     suspend fun averageLevel(): Double?
 
+    @Query("SELECT AVG(ls.level * 1.0) FROM learning_states ls INNER JOIN words w ON w.id = ls.wordId WHERE w.deleted = 0")
+    fun averageLevelFlow(): Flow<Double?>
+
     /**
      * Liefert bis zu [limit] fällige, NICHT gelöschte Karten.
      * Wenn unitId != null: nur Karten dieser Unit.
+     *
+     * Sortierung:
+     * 1. Karten, die schon länger fällig sind, zuerst (nextReviewDate ASC).
+     * 2. Innerhalb gleicher Fälligkeit: niedrigster SRS-Level zuerst (Lernfortschritt).
+     * 3. Innerhalb gleichen SRS-Levels: leichtere Sprachniveaus zuerst (A2 → B1 → B2 → C1).
+     * 4. Innerhalb gleichen Sprachniveaus: zufällig — verhindert Alphabet-Klumpung.
      */
     @Query("""
         SELECT ls.* FROM learning_states ls
@@ -62,7 +77,19 @@ interface LearningStateDao {
         WHERE ls.nextReviewDate <= :today
           AND w.deleted = 0
           AND (:unitId IS NULL OR w.unitId = :unitId)
-        ORDER BY ls.nextReviewDate ASC, ls.level ASC
+        ORDER BY
+            ls.nextReviewDate ASC,
+            ls.level ASC,
+            CASE w.level
+                WHEN 'A1' THEN 1
+                WHEN 'A2' THEN 2
+                WHEN 'B1' THEN 3
+                WHEN 'B2' THEN 4
+                WHEN 'C1' THEN 5
+                WHEN 'C2' THEN 6
+                ELSE 7
+            END ASC,
+            RANDOM()
         LIMIT :limit
     """)
     suspend fun dueListFiltered(today: Long, limit: Int, unitId: String?): List<LearningState>
@@ -85,6 +112,15 @@ interface LearningStateDao {
         GROUP BY ls.level ORDER BY ls.level
     """)
     suspend fun countByLevel(): List<LevelCount>
+
+    @Query("""
+        SELECT ls.level AS level, COUNT(*) AS count
+        FROM learning_states ls
+        INNER JOIN words w ON w.id = ls.wordId
+        WHERE w.deleted = 0
+        GROUP BY ls.level ORDER BY ls.level
+    """)
+    fun countByLevelFlow(): Flow<List<LevelCount>>
 
     /** Lernzustand zu einem Wort entfernen (z.B. wenn Unit-Wort hard-deleted wird). */
     @Query("DELETE FROM learning_states WHERE wordId = :wordId")
